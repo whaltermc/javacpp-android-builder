@@ -23,7 +23,12 @@ jobs:
       - name: Install native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build nasm yasm gawk pkg-config autoconf automake libtool
+          sudo apt-get install -y build-essential cmake ninja-build nasm yasm gawk pkg-config autoconf automake libtool meson
+
+          # Meson from apt can lag behind what cppbuild.sh expects;
+          # override with the latest via pip.
+          python3 -m pip install --user --upgrade meson
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -97,4 +102,3 @@ jobs:
           name: javacpp-ffmpeg-android-arm64
           path: output/
           if-no-files-found: error
-          
