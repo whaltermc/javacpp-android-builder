@@ -78,11 +78,13 @@ jobs:
             -Djavacpp.platform.root="$ANDROID_NDK" \
             -DskipTests
 
-      - name: Build FFmpeg platform artifact
+      - name: Build FFmpeg JavaCPP preset and platform artifact
         run: |
           mvn install \
-            --projects ffmpeg/platform \
+            --projects .,ffmpeg,ffmpeg/platform \
+            -am \
             -Djavacpp.platform=android-arm64 \
+            -Djavacpp.platform.root="$ANDROID_NDK" \
             -DskipTests
 
       - name: Collect artifacts
