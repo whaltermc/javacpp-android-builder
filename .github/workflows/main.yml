@@ -20,6 +20,11 @@ jobs:
           ref: ${{ inputs.javacpp_ref }}
           submodules: recursive
 
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build nasm yasm gawk pkg-config autoconf automake libtool
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -30,24 +35,20 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK & NDK packages
         run: |
           sdkmanager --install \
             "platform-tools" \
-            "platforms;android-35"
-
-      - name: Set up Android NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install NDK
-        run: |
-          sdkmanager --install "ndk;27.2.12479018"
+            "platforms;android-35" \
+            "ndk;27.2.12479018"
 
       - name: Configure Android environment
         shell: bash
         run: |
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK=$NDK_PATH" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$NDK_PATH" >> "$GITHUB_ENV"
 
       - name: Show toolchain
         run: |
@@ -66,11 +67,9 @@ jobs:
 
       - name: Build FFmpeg platform artifact
         run: |
-          cd platform
-
           mvn install \
-            --projects ../ffmpeg/platform \
-            -Djavacpp.platform.host \
+            --projects ffmpeg/platform \
+            -Djavacpp.platform=android-arm64 \
             -DskipTests
 
       - name: Collect artifacts
@@ -79,10 +78,6 @@ jobs:
 
           find ffmpeg -type f \
             \( -name "*.jar" -o -name "*.so" \) \
-            -exec cp {} output/ \; || true
-
-          find platform -type f \
-            -name "*.jar" \
             -exec cp {} output/ \; || true
 
           echo "===== BUILD OUTPUT ====="
@@ -94,3 +89,4 @@ jobs:
           name: javacpp-ffmpeg-android-arm64
           path: output/
           if-no-files-found: error
+          
