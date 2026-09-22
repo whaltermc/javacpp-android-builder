@@ -1,0 +1,96 @@
+name: Build JavaCPP FFmpeg Android ARM64
+
+on:
+  workflow_dispatch:
+    inputs:
+      javacpp_ref:
+        description: "JavaCPP Presets tag/branch/commit"
+        required: false
+        default: "master"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout JavaCPP Presets
+        uses: actions/checkout@v4
+        with:
+          repository: bytedeco/javacpp-presets
+          ref: ${{ inputs.javacpp_ref }}
+          submodules: recursive
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-35"
+
+      - name: Set up Android NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: |
+          sdkmanager --install "ndk;27.2.12479018"
+
+      - name: Configure Android environment
+        shell: bash
+        run: |
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Show toolchain
+        run: |
+          java -version
+          mvn -version
+          echo "ANDROID_NDK=$ANDROID_NDK"
+          test -d "$ANDROID_NDK"
+
+      - name: Build FFmpeg JavaCPP preset
+        run: |
+          mvn install \
+            --projects .,ffmpeg \
+            -Djavacpp.platform=android-arm64 \
+            -Djavacpp.platform.root="$ANDROID_NDK" \
+            -DskipTests
+
+      - name: Build FFmpeg platform artifact
+        run: |
+          cd platform
+
+          mvn install \
+            --projects ../ffmpeg/platform \
+            -Djavacpp.platform.host \
+            -DskipTests
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p output
+
+          find ffmpeg -type f \
+            \( -name "*.jar" -o -name "*.so" \) \
+            -exec cp {} output/ \; || true
+
+          find platform -type f \
+            -name "*.jar" \
+            -exec cp {} output/ \; || true
+
+          echo "===== BUILD OUTPUT ====="
+          find output -type f -print
+
+      - name: Upload FFmpeg artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: javacpp-ffmpeg-android-arm64
+          path: output/
+          if-no-files-found: error
