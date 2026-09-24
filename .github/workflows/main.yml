@@ -1,4 +1,4 @@
-name: Build JavaCPP FFmpeg Android ARM64
+name: Build JavaCPP FFmpeg Android ARM64 (GPL)
 
 on:
   workflow_dispatch:
@@ -70,20 +70,27 @@ jobs:
           echo "ANDROID_NDK=$ANDROID_NDK"
           test -d "$ANDROID_NDK"
 
-      - name: Build FFmpeg JavaCPP preset
+      # -Djavacpp.platform.extension=-gpl activates bytedeco's own "ffmpeg-gpl"
+      # Maven profile (see ffmpeg/pom.xml), which builds libx264, libx265, and
+      # other GPL-licensed codecs into libavcodec instead of relying on
+      # Android's hardware MediaCodec path. This produces artifacts with
+      # classifier "android-arm64-gpl" rather than "android-arm64".
+      - name: Build FFmpeg JavaCPP preset (GPL)
         run: |
           mvn install \
             --projects .,ffmpeg \
             -Djavacpp.platform=android-arm64 \
+            -Djavacpp.platform.extension=-gpl \
             -Djavacpp.platform.root="$ANDROID_NDK" \
             -DskipTests
 
-      - name: Build FFmpeg platform artifact
+      - name: Build FFmpeg platform artifact (GPL)
         run: |
           cd platform
           mvn install \
             --projects ../ffmpeg/platform \
             -Djavacpp.platform=android-arm64 \
+            -Djavacpp.platform.extension=-gpl \
             -DskipTests
 
       - name: Collect artifacts
@@ -100,6 +107,6 @@ jobs:
       - name: Upload FFmpeg artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: javacpp-ffmpeg-android-arm64
+          name: javacpp-ffmpeg-android-arm64-gpl
           path: output/
           if-no-files-found: error
